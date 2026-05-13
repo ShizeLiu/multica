@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@multica/ui/lib/utils";
+import { useScrollFade } from "@multica/ui/hooks/use-scroll-fade";
 import { AppLink, useNavigation } from "../navigation";
 import { HelpLauncher } from "./help-launcher";
 import {
@@ -32,6 +33,7 @@ import {
   BarChart3,
   X,
   Zap,
+  Users,
 } from "lucide-react";
 import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { ActorAvatar } from "@multica/ui/components/common/actor-avatar";
@@ -107,6 +109,7 @@ type NavKey =
   | "projects"
   | "autopilots"
   | "agents"
+  | "squads"
   | "usage"
   | "runtimes"
   | "skills"
@@ -120,6 +123,7 @@ type NavLabelKey =
   | "projects"
   | "autopilots"
   | "agents"
+  | "squads"
   | "usage"
   | "runtimes"
   | "skills"
@@ -135,6 +139,7 @@ const workspaceNav: { key: NavKey; labelKey: NavLabelKey; icon: typeof Inbox }[]
   { key: "projects", labelKey: "projects", icon: FolderKanban },
   { key: "autopilots", labelKey: "autopilots", icon: Zap },
   { key: "agents", labelKey: "agents", icon: Bot },
+  { key: "squads", labelKey: "squads", icon: Users },
   { key: "usage", labelKey: "usage", icon: BarChart3 },
 ];
 
@@ -363,6 +368,8 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const deletePin = useDeletePin();
   const reorderPins = useReorderPins();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const sidebarFadeStyle = useScrollFade(sidebarScrollRef, 24);
 
   // Local presentational copy of pinnedItems for drop-animation stability.
   // Follows TQ at rest; frozen during a drag gesture so a mid-drag cache
@@ -602,7 +609,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
         </SidebarHeader>
 
         {/* Navigation */}
-        <SidebarContent>
+        <SidebarContent ref={sidebarScrollRef} style={sidebarFadeStyle}>
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
