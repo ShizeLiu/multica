@@ -5,7 +5,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import fixPath from "fix-path";
 import { setupAutoUpdater } from "./updater";
 import { setupDaemonManager } from "./daemon-manager";
-import { openExternalSafely } from "./external-url";
+import { openExternalSafely, downloadURLSafely } from "./external-url";
 import { installContextMenu } from "./context-menu";
 import { getAppVersion } from "./app-version";
 import { loadRuntimeConfig } from "./runtime-config-loader";
@@ -212,6 +212,14 @@ const DEV_APP_NAME = process.env.DESKTOP_APP_SUFFIX
 if (is.dev) {
   app.setName(DEV_APP_NAME);
   app.setPath("userData", join(app.getPath("appData"), DEV_APP_NAME));
+} else {
+  // Pin the production app name in code. Electron's Linux WM_CLASS is set
+  // from app.getName() when the first BrowserWindow is realized; the
+  // packaged ASAR's package.json `productName` already steers app.getName()
+  // to "Multica", but anchoring it here makes WM_CLASS ↔ StartupWMClass
+  // (declared in electron-builder.yml) survive a regression in
+  // productName / the build pipeline. Must run before requestSingleInstanceLock().
+  app.setName("Multica");
 }
 
 // --- Protocol registration -----------------------------------------------
@@ -286,6 +294,14 @@ if (!gotTheLock) {
     // false configuration.
     ipcMain.handle("shell:openExternal", (_event, url: string) => {
       return openExternalSafely(url);
+    });
+
+    ipcMain.handle("file:download-url", (_event, url: string) => {
+      if (!mainWindow) {
+        console.warn("[download] ignored file:download-url — mainWindow torn down");
+        return;
+      }
+      downloadURLSafely(mainWindow, url);
     });
 
     // Sync IPC: app version + normalized OS for preload. Sync (not invoke) so
