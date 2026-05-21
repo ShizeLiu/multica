@@ -188,7 +188,6 @@ describe("ApiClient", () => {
     await client.listCloudRuntimeNodes({ limit: 20, offset: 5 });
     await client.createCloudRuntimeNode(
       { instance_type: "g5.xlarge", name: "gpu-dev-01" },
-      { userPAT: "mul_cloud_bootstrap_pat" },
     );
 
     const listCall = fetchMock.mock.calls[0]!;
@@ -207,9 +206,7 @@ describe("ApiClient", () => {
         name: "gpu-dev-01",
       }),
     });
-    expect((createCall[1]!.headers as Record<string, string>)["X-User-PAT"]).toBe(
-      "mul_cloud_bootstrap_pat",
-    );
+    expect((createCall[1]!.headers as Record<string, string>)["X-User-PAT"]).toBeUndefined();
   });
 
   it("falls back when Cloud Runtime node responses drift", async () => {
@@ -235,6 +232,27 @@ describe("ApiClient", () => {
     await expect(
       client.createCloudRuntimeNode({ instance_type: "g5.xlarge" }),
     ).resolves.toMatchObject({ id: "", status: "" });
+  });
+
+  it("deleteCloudRuntimeNode sends DELETE with JSON body containing node id", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(null, { status: 204 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new ApiClient("https://api.example.test");
+    await client.deleteCloudRuntimeNode("node-abc-123");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, opts] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.example.test/api/cloud-runtime/nodes");
+    expect(opts).toMatchObject({
+      method: "DELETE",
+      body: JSON.stringify({ id: "node-abc-123" }),
+    });
+    expect((opts.headers as Record<string, string>)["Content-Type"]).toBe(
+      "application/json",
+    );
   });
 
   describe("getAttachment", () => {

@@ -34,10 +34,6 @@ export interface CreateCloudRuntimeNodeRequest {
   tags?: Record<string, string>;
 }
 
-export interface CreateCloudRuntimeNodeOptions {
-  userPAT?: string;
-}
-
 export const cloudRuntimeKeys = {
   all: (wsId: string) => ["cloud-runtime", wsId] as const,
   nodes: (wsId: string) => [...cloudRuntimeKeys.all(wsId), "nodes"] as const,
@@ -76,13 +72,18 @@ export function cloudRuntimeNodeListOptions(
 export function useCreateCloudRuntimeNode(wsId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      data,
-      userPAT,
-    }: {
-      data: CreateCloudRuntimeNodeRequest;
-      userPAT?: string;
-    }) => api.createCloudRuntimeNode(data, { userPAT }),
+    mutationFn: (data: CreateCloudRuntimeNodeRequest) =>
+      api.createCloudRuntimeNode(data),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: cloudRuntimeKeys.all(wsId) });
+    },
+  });
+}
+
+export function useDeleteCloudRuntimeNode(wsId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (nodeId: string) => api.deleteCloudRuntimeNode(nodeId),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: cloudRuntimeKeys.all(wsId) });
     },

@@ -3,12 +3,13 @@
 import { useId, useMemo, useState } from "react";
 import type { FormEvent, HTMLAttributes } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Cloud, Loader2, RefreshCw, Rocket } from "lucide-react";
+import { Cloud, Loader2, RefreshCw, Rocket, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { CloudRuntimeNode } from "@multica/core/runtimes";
 import {
   cloudRuntimeNodeListOptions,
   useCreateCloudRuntimeNode,
+  useDeleteCloudRuntimeNode,
 } from "@multica/core/runtimes";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { Badge } from "@multica/ui/components/ui/badge";
@@ -23,11 +24,19 @@ import {
 } from "@multica/ui/components/ui/dialog";
 import { Input } from "@multica/ui/components/ui/input";
 import { Label } from "@multica/ui/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@multica/ui/components/ui/select";
 import { cn } from "@multica/ui/lib/utils";
 import { useT } from "../../i18n";
 
-const DEFAULT_REGION = "us-west-2";
-const DEFAULT_INSTANCE_TYPE = "g5.xlarge";
+const CLOUD_RUNTIME_INSTANCE_TYPES = ["t4g.medium", "t4g.large"] as const;
+const DEFAULT_INSTANCE_TYPE = CLOUD_RUNTIME_INSTANCE_TYPES[0];
+const DEFAULT_DISK_SIZE_GB = 20;
 
 export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
   const { t } = useT("runtimes");
@@ -35,13 +44,10 @@ export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
   const idPrefix = `cloud-runtime-${useId().replace(/:/g, "")}`;
   const formId = `${idPrefix}-form`;
   const [name, setName] = useState("");
-  const [instanceType, setInstanceType] = useState(DEFAULT_INSTANCE_TYPE);
-  const [region, setRegion] = useState(DEFAULT_REGION);
-  const [diskSizeGB, setDiskSizeGB] = useState("");
-  const [imageId, setImageId] = useState("");
-  const [subnetId, setSubnetId] = useState("");
-  const [keyName, setKeyName] = useState("");
-  const [bootstrapPAT, setBootstrapPAT] = useState("");
+  const [instanceType, setInstanceType] = useState<string>(
+    DEFAULT_INSTANCE_TYPE,
+  );
+  const [diskSizeGB, setDiskSizeGB] = useState(String(DEFAULT_DISK_SIZE_GB));
 
   const nodesQuery = useQuery(
     cloudRuntimeNodeListOptions(wsId, { limit: 20, offset: 0 }),
@@ -59,37 +65,24 @@ export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const instance_type = instanceType.trim();
-    if (!instance_type) {
-      toast.error(t(($) => $.cloud_runtime.validation.instance_type_required));
-      return;
-    }
-
-    const diskSize = diskSizeGB.trim() ? Number(diskSizeGB.trim()) : undefined;
-    if (
-      diskSize !== undefined &&
-      (!Number.isInteger(diskSize) || diskSize <= 0)
-    ) {
+    const diskSize = diskSizeGB.trim()
+      ? Number(diskSizeGB.trim())
+      : DEFAULT_DISK_SIZE_GB;
+    if (!Number.isInteger(diskSize) || diskSize <= 0) {
       toast.error(t(($) => $.cloud_runtime.validation.disk_size_invalid));
       return;
     }
 
     try {
       await createNode.mutateAsync({
-        data: {
-          instance_type,
-          name: valueOrUndefined(name),
-          region: valueOrUndefined(region),
-          disk_size_gb: diskSize,
-          image_id: valueOrUndefined(imageId),
-          subnet_id: valueOrUndefined(subnetId),
-          key_name: valueOrUndefined(keyName),
-        },
-        userPAT: valueOrUndefined(bootstrapPAT),
+        instance_type: instanceType,
+        name: valueOrUndefined(name),
+        disk_size_gb: diskSize,
       });
       toast.success(t(($) => $.cloud_runtime.toast_created));
       setName("");
-      setBootstrapPAT("");
+      setInstanceType(DEFAULT_INSTANCE_TYPE);
+      setDiskSizeGB(String(DEFAULT_DISK_SIZE_GB));
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -137,52 +130,16 @@ export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
                   label={t(($) => $.cloud_runtime.fields.instance_type)}
                   value={instanceType}
                   onChange={setInstanceType}
-                  placeholder={DEFAULT_INSTANCE_TYPE}
-                  required
-                />
-                <LabeledInput
-                  id={`${idPrefix}-region`}
-                  label={t(($) => $.cloud_runtime.fields.region)}
-                  value={region}
-                  onChange={setRegion}
-                  placeholder={DEFAULT_REGION}
+                  options={CLOUD_RUNTIME_INSTANCE_TYPES}
                 />
                 <LabeledInput
                   id={`${idPrefix}-disk-size`}
                   label={t(($) => $.cloud_runtime.fields.disk_size)}
                   value={diskSizeGB}
                   onChange={setDiskSizeGB}
-                  placeholder="200"
+                  placeholder={String(DEFAULT_DISK_SIZE_GB)}
+                  type="number"
                   inputMode="numeric"
-                />
-                <LabeledInput
-                  id={`${idPrefix}-image-id`}
-                  label={t(($) => $.cloud_runtime.fields.image_id)}
-                  value={imageId}
-                  onChange={setImageId}
-                  placeholder="ami-..."
-                />
-                <LabeledInput
-                  id={`${idPrefix}-subnet-id`}
-                  label={t(($) => $.cloud_runtime.fields.subnet_id)}
-                  value={subnetId}
-                  onChange={setSubnetId}
-                  placeholder="subnet-..."
-                />
-                <LabeledInput
-                  id={`${idPrefix}-key-name`}
-                  label={t(($) => $.cloud_runtime.fields.key_name)}
-                  value={keyName}
-                  onChange={setKeyName}
-                  placeholder={t(($) => $.cloud_runtime.placeholders.key_name)}
-                />
-                <LabeledInput
-                  id={`${idPrefix}-bootstrap-pat`}
-                  label={t(($) => $.cloud_runtime.fields.bootstrap_pat)}
-                  value={bootstrapPAT}
-                  onChange={setBootstrapPAT}
-                  placeholder="mul_..."
-                  type="password"
                 />
               </div>
             </form>
@@ -236,7 +193,7 @@ export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
                 <div className="max-h-[410px] overflow-y-auto p-2">
                   <div className="space-y-2">
                     {sortedNodes.map((node) => (
-                      <CloudRuntimeNodeRow key={node.id} node={node} />
+                      <CloudRuntimeNodeRow key={node.id} node={node} wsId={wsId} />
                     ))}
                   </div>
                 </div>
@@ -279,6 +236,7 @@ function LabeledInput({
   required,
   type = "text",
   inputMode,
+  options,
 }: {
   id: string;
   label: string;
@@ -288,7 +246,32 @@ function LabeledInput({
   required?: boolean;
   type?: string;
   inputMode?: HTMLAttributes<HTMLInputElement>["inputMode"];
+  options?: readonly string[];
 }) {
+  if (options) {
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={id} className="text-xs text-muted-foreground">
+          {label}
+        </Label>
+        <Select value={value} onValueChange={(next) => onChange(next ?? value)}>
+          <SelectTrigger id={id} className="h-9 w-full rounded-md text-sm">
+            <SelectValue>
+              {() => <span className="truncate">{value}</span>}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent align="start">
+            {options.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-xs text-muted-foreground">
@@ -308,8 +291,9 @@ function LabeledInput({
   );
 }
 
-function CloudRuntimeNodeRow({ node }: { node: CloudRuntimeNode }) {
+function CloudRuntimeNodeRow({ node, wsId }: { node: CloudRuntimeNode; wsId: string }) {
   const { t } = useT("runtimes");
+  const deleteNode = useDeleteCloudRuntimeNode(wsId);
   const title =
     node.name.trim() ||
     node.instance_id.trim() ||
@@ -335,6 +319,32 @@ function CloudRuntimeNodeRow({ node }: { node: CloudRuntimeNode }) {
             )}
           </div>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 shrink-0 p-0 text-muted-foreground hover:text-destructive"
+          disabled={deleteNode.isPending}
+          onClick={() => {
+            if (!confirm(t(($) => $.cloud_runtime.delete_confirm))) return;
+            deleteNode.mutate(node.id, {
+              onSuccess: () => toast.success(t(($) => $.cloud_runtime.toast_deleted)),
+              onError: (err) =>
+                toast.error(
+                  err instanceof Error
+                    ? err.message
+                    : t(($) => $.cloud_runtime.toast_delete_failed),
+                ),
+            });
+          }}
+          aria-label={t(($) => $.cloud_runtime.delete)}
+        >
+          {deleteNode.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
       </div>
       {node.instance_id && (
         <div className="mt-2 truncate font-mono text-[11px] text-muted-foreground/80">

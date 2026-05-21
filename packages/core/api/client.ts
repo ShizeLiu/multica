@@ -103,7 +103,6 @@ import type {
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type {
   CloudRuntimeNode,
-  CreateCloudRuntimeNodeOptions,
   CreateCloudRuntimeNodeRequest,
   ListCloudRuntimeNodesParams,
 } from "../runtimes/cloud-runtime";
@@ -501,6 +500,9 @@ export class ApiClient {
     if (params?.creator_id) search.set("creator_id", params.creator_id);
     if (params?.project_id) search.set("project_id", params.project_id);
     if (params?.involves_user_id) search.set("involves_user_id", params.involves_user_id);
+    if (params?.metadata && Object.keys(params.metadata).length > 0) {
+      search.set("metadata", JSON.stringify(params.metadata));
+    }
     if (params?.open_only) search.set("open_only", "true");
     if (params?.scheduled) search.set("scheduled", "true");
     const path = `/api/issues?${search}`;
@@ -523,6 +525,9 @@ export class ApiClient {
     if (params.creator_id) search.set("creator_id", params.creator_id);
     if (params.project_id) search.set("project_id", params.project_id);
     if (params.involves_user_id) search.set("involves_user_id", params.involves_user_id);
+    if (params.metadata && Object.keys(params.metadata).length > 0) {
+      search.set("metadata", JSON.stringify(params.metadata));
+    }
     if (params.assignee_filters?.length) {
       search.set("assignee_filters", params.assignee_filters.map((f) => `${f.type}:${f.id}`).join(","));
     }
@@ -849,17 +854,11 @@ export class ApiClient {
 
   async createCloudRuntimeNode(
     data: CreateCloudRuntimeNodeRequest,
-    options?: CreateCloudRuntimeNodeOptions,
   ): Promise<CloudRuntimeNode> {
-    const extraHeaders: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    const userPAT = options?.userPAT?.trim();
-    if (userPAT) extraHeaders["X-User-PAT"] = userPAT;
     const res = await this.fetchRaw("/api/cloud-runtime/nodes", {
       method: "POST",
       body: JSON.stringify(data),
-      extraHeaders,
+      extraHeaders: { "Content-Type": "application/json" },
     });
     const raw = await res.json() as unknown;
     return parseWithFallback(
@@ -868,6 +867,14 @@ export class ApiClient {
       EMPTY_CLOUD_RUNTIME_NODE,
       { endpoint: "POST /api/cloud-runtime/nodes" },
     );
+  }
+
+  async deleteCloudRuntimeNode(nodeId: string): Promise<void> {
+    await this.fetchRaw("/api/cloud-runtime/nodes", {
+      method: "DELETE",
+      body: JSON.stringify({ id: nodeId }),
+      extraHeaders: { "Content-Type": "application/json" },
+    });
   }
 
   async deleteRuntime(runtimeId: string): Promise<void> {

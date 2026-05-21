@@ -160,7 +160,7 @@
     "title": "Cloud Runtime",
     "description": "Launch a managed cloud node and watch its Fleet status.",
     "create_title": "New node",
-    "create_hint": "Defaults target the shared us-west-2 Fleet configuration.",
+    "create_hint": "Choose a name, instance type, and disk size. Fleet applies the rest.",
     "nodes_title": "Fleet nodes",
     "refresh": "Refresh",
     "nodes_empty": "No cloud nodes",
@@ -172,6 +172,10 @@
     "cancel": "Cancel",
     "toast_created": "Cloud Runtime node created",
     "toast_create_failed": "Failed to create Cloud Runtime node",
+    "delete": "Delete node",
+    "delete_confirm": "Are you sure you want to delete this cloud node? This action cannot be undone.",
+    "toast_deleted": "Cloud node deleted",
+    "toast_delete_failed": "Failed to delete cloud node",
     "fields": {
       "name": "Name",
       "instance_type": "Instance type",
@@ -183,7 +187,7 @@
       "bootstrap_pat": "Bootstrap PAT"
     },
     "placeholders": {
-      "name": "gpu-dev-01",
+      "name": "cloud-dev-01",
       "key_name": "dev-key"
     },
     "validation": {
